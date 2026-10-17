@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Rake Reports</title>
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rake Reports">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{--bg:#f5f5f7;--card:#fff;--ink:#1d1d1f;--mute:#6e6e73;--line:#d2d2d7;--fill:#f5f5f7;--seg:rgba(120,120,128,.16);--nav:rgba(245,245,247,.82);--blue:#0071e3;--blue-h:#0077ed;--green:#1d8a47;--red:#d70015;--sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;--mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#000;--card:#1d1d1f;--ink:#f5f5f7;--mute:#a1a1a6;--line:#424245;--fill:#2c2c2e;--nav:rgba(0,0,0,.72);--blue:#2997ff;--blue-h:#409cff;--green:#30d158;--red:#ff453a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.47 var(--sans);letter-spacing:-.022em;-webkit-font-smoothing:antialiased;padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+.nav{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;height:calc(52px + env(safe-area-inset-top,0px));padding:env(safe-area-inset-top,0px) 20px 0;background:var(--nav);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
+.nav b{font-weight:600}.nav a{color:var(--blue);text-decoration:none;font-size:15px}
+.wrap{max-width:680px;margin:0 auto;padding:0 20px}
+.hero{padding:44px 0 32px}
+.hero h1{font-size:clamp(34px,8vw,44px);line-height:1.07;font-weight:700;letter-spacing:-.04em;margin:0 0 10px}
+.hero p{font-size:21px;line-height:1.25;color:var(--mute);margin:0;letter-spacing:-.02em}
+.stage{margin-bottom:32px}
+.stage-label{display:flex;align-items:center;gap:12px;font-size:24px;font-weight:600;letter-spacing:-.03em;margin:0 0 14px}
+.stage-label .n{flex:none;width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--bg);font-size:15px;display:flex;align-items:center;justify-content:center}
+.stage-label.done .n{background:var(--green);color:#fff}
+.card{background:var(--card);border-radius:20px;padding:24px}
+#dropzone{border:1.5px dashed var(--line);border-radius:16px;padding:36px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s}
+#dropzone:hover,#dropzone.drag{border-color:var(--blue);background:var(--fill)}
+#dropzone .big{font-size:19px;font-weight:600;margin-bottom:4px}
+#dropzone .small{color:var(--mute);font-size:14px;line-height:1.4}
+#fileInput{display:none}
+.filepill{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--fill);border-radius:12px;padding:11px 16px;font-size:15px;margin-top:10px}
+.filepill .name{overflow-wrap:anywhere}
+.filepill button{background:none;border:0;color:var(--blue);cursor:pointer;font:inherit;font-size:15px;padding:0}
+.perfile-row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:.5px solid var(--line);font-size:14px;color:var(--mute)}
+.perfile-row .n{color:var(--ink);font-weight:600}.perfile-row .s{color:var(--green);white-space:nowrap}.perfile-row .s.warn{color:var(--red)}
+.status{font-size:14px;color:var(--mute);margin-top:12px}
+.ticket{display:none}
+.rowline{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:12px 0;border-bottom:.5px solid var(--line);font-size:16px}
+.rowline:last-child{border-bottom:0}
+.rowline .k{color:var(--mute)}.rowline .v{font-weight:600;text-align:right}.rowline .v.warn{color:var(--red)}
+.rowline .sub{display:block;font-size:13px;font-weight:400;color:var(--mute);text-align:right;margin-top:2px}
+.rowline .sub.mismatch{color:var(--red)}
+.warnbox{background:var(--fill);border-radius:12px;padding:12px 16px;margin-bottom:8px;font-size:14px;line-height:1.4;color:var(--red)}
+.warnbox div+div{margin-top:6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.field label{font-size:14px;color:var(--mute)}
+.field input{font:inherit;font-size:17px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;outline:none;width:100%}
+.field input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,113,227,.25)}
+.hint{font-size:13px;color:var(--mute);line-height:1.4}
+.manifest{display:none;background:var(--card);border-radius:20px;padding:24px}
+.manifest pre{margin:0;white-space:pre-wrap;font:15px/1.9 var(--mono);letter-spacing:0}
+.manifest .em{font-weight:600;color:var(--blue)}
+.copybtn,.btn-primary{display:inline-block;background:var(--blue);color:#fff;border:0;border-radius:980px;font:inherit;font-size:17px;padding:11px 22px;cursor:pointer;text-align:center;transition:background .2s}
+.copybtn{margin-top:18px}.btn-primary{display:block}
+.copybtn:hover,.btn-primary:hover{background:var(--blue-h)}
+.copybtn.copied{background:var(--green)}
+#missingStatus .good{color:var(--green)}#missingStatus .bad{color:var(--red)}
+.btn-ghost{color:var(--blue);font-size:17px;cursor:pointer}
+.empty-note{color:var(--mute);font-size:15px;text-align:center;padding:20px 0}
+.assumption{margin-top:20px;font-size:13px;color:var(--mute);line-height:1.5}
+.navtabs{display:flex;gap:4px;background:var(--seg);padding:3px;border-radius:10px;margin:0 0 24px}
+.navtab{flex:1;text-align:center;padding:7px 8px;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer}
+.navtab.active{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+</style>
+</head>
+<body>
+<nav class="nav"><b>Rake Reports</b></nav>
+<div class="wrap">
+  <div class="hero"><h1>Daily reports.</h1><p>Messages built from the shared log, ready to copy.</p></div>
+  <div class="field" style="max-width:220px"><label for="reportDate">Report date</label><input type="date" id="reportDate"></div>
+  <div class="navtabs"><div class="navtab active" id="tabAccepted">Accepted wt</div><div class="navtab" id="tabReceipt">Coal receipt</div></div>
+  <div id="receiptView" style="display:none">
+    <div class="stage">
+      <div class="card">
+        <div id="receiptSignedOut" style="display:none;">
+          <div class="empty-note" style="padding:6px 0 14px;">Sign in with your Google account to view today's receipt.</div>
+          <div class="btn-primary" id="receiptSignInBtn" style="cursor:pointer;">Sign in with Google</div>
+        </div>
+        <div id="receiptLoaded">
+          <div class="manifest" id="receiptManifest" style="display:none;">
+            <pre id="receiptText"></pre>
+            <button class="copybtn" id="receiptCopyBtn">Copy</button>
+            <button class="btn-ghost" id="receiptRefreshBtn" style="margin-top:10px; margin-left:10px; cursor:pointer; display:inline-block;">Refresh</button>
+          </div>
+          <div class="empty-note" id="receiptEmptyNote">Loading…</div>
+        </div>
+      </div>
+      </div>
+  </div>
+
+  <div id="acceptedView" style="display:none">
+    <div class="stage">
+      <div class="card">
+        <div id="acceptedSignedOut" style="display:none;">
+          <div class="empty-note" style="padding:6px 0 14px;">Sign in with your Google account to view today's accepted weights.</div>
+          <div class="btn-primary" id="acceptedSignInBtn" style="cursor:pointer;">Sign in with Google</div>
+        </div>
+        <div id="acceptedLoaded">
+          <div class="manifest" id="acceptedManifest" style="display:none;">
+            <pre id="acceptedText"></pre>
+            <button class="copybtn" id="acceptedCopyBtn">Copy</button>
+            <button class="btn-ghost" id="acceptedRefreshBtn" style="margin-top:10px; margin-left:10px; cursor:pointer; display:inline-block;">Refresh</button>
+          </div>
+          <div class="empty-note" id="acceptedEmptyNote">Loading…</div>
+        </div>
+      </div>
+      </div>
+  </div>
+  <div class="assumption">Rakes are picked by Arrival Date for the date chosen above. This page only reads the log and never changes it.</div>
+</div>
+<script>
+const GOOGLE_CLIENT_ID = '272581770006-b8ju35r5peldmmccb01gc59pj5o0ho61.apps.googleusercontent.com';
+const SPREADSHEET_ID = '1aPvrDkOmmis-3Lv1PyoasZOeA3EmBV9UbnlyWeEurS4';
+const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/userinfo.email';
+let accessToken = null, tokenClient = null;
+const $ = (id) => document.getElementById(id);
+const els = {receiptView: $('receiptView'), receiptSignedOut: $('receiptSignedOut'), receiptLoaded: $('receiptLoaded'), receiptManifest: $('receiptManifest'), receiptText: $('receiptText'), receiptEmptyNote: $('receiptEmptyNote'), acceptedView: $('acceptedView'), acceptedSignedOut: $('acceptedSignedOut'), acceptedLoaded: $('acceptedLoaded'), acceptedManifest: $('acceptedManifest'), acceptedText: $('acceptedText'), acceptedEmptyNote: $('acceptedEmptyNote')};
+function selectedDate() {
+  const v = $('reportDate').value;
+  if (v) { const [y, m, d] = v.split('-').map(Number); return new Date(y, m - 1, d); }
+  return new Date();
+}
+// --- Today's Receipt ---
+// Fixed order the categories are always shown in, with a blank line where the template has one.
+// Display labels use hyphens ("WCL-RAIL") though the Sender column stores them with spaces ("WCL RAIL").
+const RECEIPT_CATEGORIES = ['WCL RAIL', 'WCL WASH', 'WCL RCR', null, 'SECL RAIL', 'SECL RCR', 'SECL WASH', null, 'NCL RAIL'];
+
+function sheetSerialToDate(serial) {
+  // Google Sheets date serials are days since 1899-12-30 (its epoch, not Unix epoch).
+  return new Date(Date.UTC(1899, 11, 30) + Math.round(serial) * 86400000);
+}
+
+function isSameLocalDay(d, ref) {
+  return d.getUTCFullYear() === ref.getFullYear() && d.getUTCMonth() === ref.getMonth() && d.getUTCDate() === ref.getDate();
+}
+
+async function fetchAndRenderReceipt() {
+  if (!els.receiptView) return;
+  if (!accessToken) {
+    els.receiptSignedOut.style.display = 'block';
+    els.receiptLoaded.style.display = 'none';
+    return;
+  }
+  els.receiptSignedOut.style.display = 'none';
+  els.receiptLoaded.style.display = 'block';
+  els.receiptManifest.style.display = 'none';
+  els.receiptEmptyNote.style.display = 'block';
+  els.receiptEmptyNote.textContent = 'Loading…';
+
+  try {
+    // Sender = column C, Arrival Date = column G, Accepted WT = column O.
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent("'Rake Log'!C6:O")}?valueRenderOption=UNFORMATTED_VALUE`;
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + accessToken } });
+    if (r.status === 401) { accessToken = null; fetchAndRenderReceipt(); fetchAndRenderAccepted(); return; }
+    if (!r.ok) throw new Error(`Sheets API error (${r.status})`);
+    const data = await r.json();
+    const rows = data.values || [];
+
+    const today = selectedDate();
+    const totals = {}; // tag -> { count, sum }
+    let unrecognizedCount = 0;
+
+    for (const row of rows) {
+      const sender = row[0];
+      const arrivalSerial = row[4];
+      const acceptedWt = row[12];
+      if (arrivalSerial === undefined || arrivalSerial === null || arrivalSerial === '') continue;
+      const arrivalDate = sheetSerialToDate(arrivalSerial);
+      if (!isSameLocalDay(arrivalDate, today)) continue;
+
+      const wt = typeof acceptedWt === 'number' ? acceptedWt : parseFloat(acceptedWt) || 0;
+      if (sender && RECEIPT_CATEGORIES.includes(sender)) {
+        if (!totals[sender]) totals[sender] = { count: 0, sum: 0 };
+        totals[sender].count++;
+        totals[sender].sum += wt;
+      } else {
+        unrecognizedCount++;
+      }
+    }
+
+    const dateStr = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
+    let grandTotal = 0;
+    const lines = ['SSTPP KHANDWA', `Receipt on ${dateStr}`, ''];
+    for (const cat of RECEIPT_CATEGORIES) {
+      if (cat === null) { lines.push(''); continue; }
+      const label = cat.replace(' ', '-');
+      const t = totals[cat];
+      const count = String(t ? t.count : 0).padStart(2, '0');
+      if (t && t.count > 0) {
+        const sum = Math.round(t.sum * 100) / 100;
+        grandTotal += sum;
+        lines.push(`${label} - (${count}) - ${sum.toFixed(2)}`);
+      } else {
+        lines.push(`${label} - (${count}) - NIL`);
+      }
+    }
+    lines.push('-----------------------------------------------');
+    lines.push(`Today receipt - *${(Math.round(grandTotal * 100) / 100).toFixed(2)}* MT`);
+    lines.push('');
+    lines.push('EE(CTD)');
+    lines.push('SSTPP');
+    if (unrecognizedCount > 0) {
+      lines.push('');
+      lines.push(`(note: ${unrecognizedCount} rake(s) today have an unrecognized/blank Sender tag and are not included above — check the log)`);
+    }
+
+    els.receiptText.textContent = lines.join('\n');
+    els.receiptManifest.style.display = 'block';
+    els.receiptEmptyNote.style.display = 'none';
+  } catch (err) {
+    els.receiptEmptyNote.textContent = 'Could not load — ' + err.message;
+    els.receiptEmptyNote.style.display = 'block';
+    els.receiptManifest.style.display = 'none';
+  }
+}
+
+// --- Accepted Wt List ---
+// One line per rake received today, ordered by Monthly Rake No: "Rake <no> accept wt <wt>".
+async function fetchAndRenderAccepted() {
+  if (!els.acceptedView) return;
+  if (!accessToken) {
+    els.acceptedSignedOut.style.display = 'block';
+    els.acceptedLoaded.style.display = 'none';
+    return;
+  }
+  els.acceptedSignedOut.style.display = 'none';
+  els.acceptedLoaded.style.display = 'block';
+  els.acceptedManifest.style.display = 'none';
+  els.acceptedEmptyNote.style.display = 'block';
+  els.acceptedEmptyNote.textContent = 'Loading…';
+
+  try {
+    // Monthly Rake No = column B, Arrival Date = column G, Accepted WT = column O.
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent("'Rake Log'!B6:O")}?valueRenderOption=UNFORMATTED_VALUE`;
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + accessToken } });
+    if (r.status === 401) { accessToken = null; fetchAndRenderReceipt(); fetchAndRenderAccepted(); return; }
+    if (!r.ok) throw new Error(`Sheets API error (${r.status})`);
+    const data = await r.json();
+    const rows = data.values || [];
+
+    const today = selectedDate();
+    const entries = [];
+    for (const row of rows) {
+      const seq = row[0];
+      const arrivalSerial = row[5];
+      const acceptedWt = row[13];
+      if (arrivalSerial === undefined || arrivalSerial === null || arrivalSerial === '') continue;
+      if (!isSameLocalDay(sheetSerialToDate(arrivalSerial), today)) continue;
+      const wt = typeof acceptedWt === 'number' ? acceptedWt : parseFloat(acceptedWt);
+      const seqStr = (seq === undefined || seq === null) ? '' : String(seq).trim();
+      const seqNum = parseFloat(seqStr);
+      entries.push({ seqStr, seqNum: isNaN(seqNum) ? Infinity : seqNum, wt });
+    }
+
+    if (entries.length === 0) {
+      els.acceptedEmptyNote.textContent = 'No rakes received yet today.';
+      els.acceptedEmptyNote.style.display = 'block';
+      els.acceptedManifest.style.display = 'none';
+      return;
+    }
+
+    // Numeric order by Monthly Rake No; rows with a blank/non-numeric number go last, in sheet order.
+    entries.sort((a, b) => a.seqNum - b.seqNum);
+    const lines = entries.map((e) => {
+      const wtStr = isNaN(e.wt) ? '—' : (Math.round(e.wt * 100) / 100).toFixed(2);
+      return `Rake ${e.seqStr || '?'} accept wt ${wtStr}`;
+    });
+
+    els.acceptedText.textContent = lines.join('\n');
+    els.acceptedManifest.style.display = 'block';
+    els.acceptedEmptyNote.style.display = 'none';
+  } catch (err) {
+    els.acceptedEmptyNote.textContent = 'Could not load — ' + err.message;
+    els.acceptedEmptyNote.style.display = 'block';
+    els.acceptedManifest.style.display = 'none';
+  }
+}
+
+
+function refresh() { fetchAndRenderReceipt(); fetchAndRenderAccepted(); }
+function showTab(which) {
+  $('tabAccepted').classList.toggle('active', which === 'accepted');
+  $('tabReceipt').classList.toggle('active', which === 'receipt');
+  els.acceptedView.style.display = which === 'accepted' ? 'block' : 'none';
+  els.receiptView.style.display = which === 'receipt' ? 'block' : 'none';
+}
+function initGoogleSignIn() {
+  if (typeof google === 'undefined' || !google.accounts) { setTimeout(initGoogleSignIn, 500); return; }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID, scope: SHEETS_SCOPE,
+    callback: (resp) => { if (resp.error) return; accessToken = resp.access_token; refresh(); },
+  });
+}
+function signIn() {
+  if (!tokenClient) { initGoogleSignIn(); setTimeout(() => tokenClient && tokenClient.requestAccessToken(), 800); return; }
+  tokenClient.requestAccessToken();
+}
+function copyFrom(btn, el) {
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    btn.textContent = 'Copied'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+const t = new Date();
+$('reportDate').value = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+$('reportDate').addEventListener('change', () => { if (accessToken) refresh(); });
+$('tabAccepted').addEventListener('click', () => showTab('accepted'));
+$('tabReceipt').addEventListener('click', () => showTab('receipt'));
+$('receiptSignInBtn').addEventListener('click', signIn);
+$('acceptedSignInBtn').addEventListener('click', signIn);
+$('receiptRefreshBtn').addEventListener('click', fetchAndRenderReceipt);
+$('acceptedRefreshBtn').addEventListener('click', fetchAndRenderAccepted);
+$('receiptCopyBtn').addEventListener('click', () => copyFrom($('receiptCopyBtn'), els.receiptText));
+$('acceptedCopyBtn').addEventListener('click', () => copyFrom($('acceptedCopyBtn'), els.acceptedText));
+initGoogleSignIn();
+showTab('accepted');
+refresh();
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+</script>
+</body>
+</html>
