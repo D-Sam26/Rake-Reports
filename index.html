@@ -67,6 +67,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.47 var(--sans);l
 .assumption{margin-top:20px;font-size:13px;color:var(--mute);line-height:1.5}
 .navtabs{display:flex;gap:4px;background:var(--seg);padding:3px;border-radius:10px;margin:0 0 24px}
 .navtab{flex:1;text-align:center;padding:7px 8px;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer}
+textarea{font:15px/1.6 var(--mono);color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;width:100%;outline:none;resize:vertical}textarea.out{background:var(--fill)}
 .navtab.active{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.15)}
 </style>
 </head>
@@ -74,8 +75,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.47 var(--sans);l
 <nav class="nav"><b>Rake Reports</b></nav>
 <div class="wrap">
   <div class="hero"><h1>Daily reports.</h1><p>Messages built from the shared log, ready to copy.</p></div>
-  <div class="field" style="max-width:220px"><label for="reportDate">Report date</label><input type="date" id="reportDate"></div>
-  <div class="navtabs"><div class="navtab active" id="tabAccepted">Accepted wt</div><div class="navtab" id="tabReceipt">Coal receipt</div></div>
+  <div class="field" id="dateField" style="max-width:220px"><label for="reportDate">Report date</label><input type="date" id="reportDate"></div>
+  <div class="navtabs"><div class="navtab active" id="tabAccepted">Accepted wt</div><div class="navtab" id="tabReceipt">Coal receipt</div><div class="navtab" id="tabMorning">Morning</div></div>
   <div id="receiptView" style="display:none">
     <div class="stage">
       <div class="card">
@@ -113,7 +114,33 @@ body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.47 var(--sans);l
       </div>
       </div>
   </div>
-  <div class="assumption">Rakes are picked by Arrival Date for the date chosen above. This page only reads the log and never changes it.</div>
+  <div id="morningView" style="display:none">
+    <div class="stage"><div class="card">
+      <div id="mSignedOut" style="display:none;">
+        <div class="empty-note" style="padding:6px 0 14px;">Sign in with your Google account to build the morning messages.</div>
+        <div class="btn-primary" id="mSignInBtn" style="cursor:pointer;">Sign in with Google</div>
+      </div>
+      <div id="mBody">
+        <div class="field"><label for="mTxt">1. Paste the other division's coal report message</label><textarea id="mTxt" rows="5" placeholder="*COAL REPORT Dtd-* ..."></textarea></div>
+        <div class="field"><label for="mXml">2. Railway portal XML (loads on run)</label><input type="file" id="mXml" accept=".xml,text/xml"><div class="hint" id="mXmlNote">Not loaded yet.</div></div>
+        <div class="hint" style="margin-bottom:8px">3. Status on the current date (type these; the portal can lag)</div>
+        <div class="grid2">
+          <div class="field"><label for="mRecv">Rake received</label><input type="number" id="mRecv"></div>
+          <div class="field"><label for="mTransit">In transit</label><input type="number" id="mTransit"></div>
+          <div class="field"><label for="mLoading">Under loading</label><input type="number" id="mLoading"></div>
+          <div class="field"><label for="mExpected">Expected arrival</label><input type="number" id="mExpected"></div>
+        </div>
+        <div class="warnbox" id="mWarn" style="display:none"></div>
+        <div id="mOut" style="display:none">
+          <div class="hint" style="margin:14px 0 4px">06:00 coal report</div><textarea id="mCoal" class="out"></textarea><button class="copybtn" data-t="mCoal">Copy</button>
+          <div class="hint" style="margin:18px 0 4px">06:00 DRM message</div><textarea id="mDrm" class="out"></textarea><button class="copybtn" data-t="mDrm">Copy</button>
+          <div class="hint" style="margin:18px 0 4px">07:00 rake movement status</div><textarea id="mMove" class="out"></textarea><button class="copybtn" data-t="mMove">Copy</button>
+        </div>
+        <button class="btn-ghost" id="mRefresh" style="margin-top:14px;display:inline-block">Reload log</button>
+      </div>
+    </div></div>
+  </div>
+  <div class="assumption">Rakes are picked by Arrival Date for the date chosen above. This page only reads the log and never changes it. The Morning tab uses the date in the pasted message instead.</div>
 </div>
 <script>
 const GOOGLE_CLIENT_ID = '272581770006-b8ju35r5peldmmccb01gc59pj5o0ho61.apps.googleusercontent.com';
@@ -284,12 +311,15 @@ async function fetchAndRenderAccepted() {
 }
 
 
-function refresh() { fetchAndRenderReceipt(); fetchAndRenderAccepted(); }
+function refresh() { fetchAndRenderReceipt(); fetchAndRenderAccepted(); buildMorning(); }
 function showTab(which) {
   $('tabAccepted').classList.toggle('active', which === 'accepted');
   $('tabReceipt').classList.toggle('active', which === 'receipt');
+  $('tabMorning').classList.toggle('active', which === 'morning');
   els.acceptedView.style.display = which === 'accepted' ? 'block' : 'none';
   els.receiptView.style.display = which === 'receipt' ? 'block' : 'none';
+  $('morningView').style.display = which === 'morning' ? 'block' : 'none';
+  $('dateField').style.display = which === 'morning' ? 'none' : 'block';
 }
 function initGoogleSignIn() {
   if (typeof google === 'undefined' || !google.accounts) { setTimeout(initGoogleSignIn, 500); return; }
@@ -319,6 +349,177 @@ $('receiptRefreshBtn').addEventListener('click', fetchAndRenderReceipt);
 $('acceptedRefreshBtn').addEventListener('click', fetchAndRenderAccepted);
 $('receiptCopyBtn').addEventListener('click', () => copyFrom($('receiptCopyBtn'), els.receiptText));
 $('acceptedCopyBtn').addEventListener('click', () => copyFrom($('acceptedCopyBtn'), els.acceptedText));
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+// ---------- Morning report (coal report, DRM, rake movement) ----------
+const FALLBACK_TAGS={DCSN:'NCL RAIL',GCNM:'NCL RAIL',KSCK:'NCL RAIL',DSNS:'NCL RAIL',BNGK:'NCL RAIL',JCZ:'NCL RAIL',JNCS:'NCL RAIL',SPUS:'NCL RAIL',BWWL:'NCL RAIL',BCSK:'NCL RAIL',NKGS:'NCL RAIL',
+ PMCJ:'SECL WASH',PMBG:'SECL WASH',GPCC:'SECL WASH',DSGR:'SECL WASH',PHEC:'SECL WASH',BCSB:'SECL RAIL',NCSN:'SECL RAIL',BGWK:'SECL RAIL',CPHC:'SECL RAIL',RJCB:'SECL RAIL',JRGJ:'SECL RAIL',
+ MBCB:'WCL RAIL',BPQ:'WCL RAIL',RKSG:'WCL RAIL',DCSG:'WCL RAIL',GSG:'WCL RAIL',MNOG:'WCL RAIL',UMSG:'WCL RAIL',GGS:'WCL RAIL',DMGM:'WCL RAIL',DKSK:'WCL RAIL',
+ PVIT:'WCL WASH',PRPI:'WCL WASH',KAV:'WCL WASH',TAE:'WCL WASH'};
+const DIV_NAMES={NGP:'NAGPUR DIVISION',DHN:'DHANBAD DIVISION',BSP:'BILASPUR',JBP:'JABALPUR',BSL:'BHUSAWAL',BPL:'BHOPAL DIVISION'};
+const p2=(n)=>String(n).padStart(2,'0'), f2=(n)=>(Math.round(n*100)/100).toFixed(2);
+const rk=(n)=>n===1?'Rake':'Rakes';
+function parseXmlRows(xml){return [...xml.matchAll(/<Row>([\s\S]*?)<\/Row>/g)].map((m)=>{const o={};for(const t of m[1].matchAll(/<(\w+)>([\s\S]*?)<\/\1>/g))o[t[1]]=t[2].trim();return o;});}
+function mGrab(re,s){const m=s.match(re);return m?m[1]:null;}
+function mUnits(sec,unit){const o={};const re=new RegExp('U#(\\d)\\s*-\\s*([\\d.]+)\\s*'+unit,'gi');let m;while((m=re.exec(sec)))o[m[1]]=m[2];return o;}
+function parseCoalReports(raw){
+  const t=raw.replace(/\*/g,'').replace(/\r/g,'');
+  return t.split(/(?=COAL REPORT\s*Dtd)/i).filter((s)=>/OPENING BAL/i.test(s)).map((s)=>{
+    const d=s.match(/Dtd-\s*(\d{2})\.(\d{2})\.(\d{4})/i);
+    const r={date:d?`${d[1]}-${d[2]}-${d[3]}`:null,opening:mGrab(/OPENING BAL-\s*([\d.]+)/i,s),received:mGrab(/COAL RECEIVED-\s*([\d.]+)/i,s),
+      cons:mUnits((s.match(/CONSUMPTION:?-?([\s\S]*?)\n\s*TOTAL\s*-/)||[])[1]||'','MT'),totalCons:mGrab(/\n\s*TOTAL\s*-\s*([\d.]+)/,s),
+      closing:mGrab(/CLOSING BAL-\s*([\d.]+)/i,s),gen:mUnits((s.match(/Generation:([\s\S]*?)Total Generation/i)||[])[1]||'','MU'),totalGen:mGrab(/Total Generation:-?\s*([\d.]+)/i,s)};
+    r.running=Object.values(r.cons).filter((v)=>parseFloat(v)>0).length;
+    const f=[],n=Number,sum=(o)=>Object.values(o).reduce((a,v)=>a+n(v),0);
+    ['date','opening','received','totalCons','closing','totalGen'].forEach((k)=>{if(r[k]==null)f.push('Message: could not read '+k);});
+    if(Object.keys(r.cons).length!==4||Object.keys(r.gen).length!==4)f.push('Message: expected 4 units in consumption and generation');
+    if(Math.abs(sum(r.cons)-n(r.totalCons))>1)f.push('Message: unit consumption does not add up to its TOTAL');
+    if(Math.abs(sum(r.gen)-n(r.totalGen))>0.002)f.push('Message: unit generation does not add up to Total Generation');
+    if(Math.abs(n(r.opening)+n(r.received)-n(r.totalCons)-n(r.closing))>0.5)f.push('Message: opening + received - consumption does not equal its closing');
+    r.flags=f;return r;});
+}
+function drmText(r){
+  return `BPL Division
+NPSSS 301023
+Date ${r.date.replace(/-/g,'.')}
+
+No of Units:-
+
+660MW *2Nos
+600MW *2Nos
+Total Capacity: 2520 MW
+Running units - ${p2(r.running)}
+
+Daily generation (MU): ${r.totalGen} MU (Million units)
+
+Coal Consumption- ${r.totalCons} MT
+
+Coal opening stock- ${r.opening}  MT
+
+Coal (Fresh) received- ${r.received} MT
+
+Coal Closing Balance - ${r.closing} MT`;
+}
+let mCache=null;
+async function mLoad(force){
+  if(mCache&&!force)return mCache;
+  const get=async(range)=>{const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?valueRenderOption=UNFORMATTED_VALUE`,{headers:{Authorization:'Bearer '+accessToken}});if(!r.ok)throw new Error('Sheets error '+r.status+' for '+range);return (await r.json()).values||[];};
+  const log=await get("'Rake Log'!B6:O");
+  const sid=await get("'Siding Reference'!A2:B1000").catch(()=>null);
+  const stn=await get("'Station Names'!A2:B1000").catch(()=>null);
+  const tags={},names={};
+  (sid||[]).forEach((r)=>{if(r[0])tags[String(r[0]).trim().toUpperCase()]=r[1]?String(r[1]).trim():'';});
+  (stn||[]).forEach((r)=>{if(r[1])names[String(r[1]).trim().toUpperCase()]=String(r[0]).replace(/\s*\(H\)/i,'').replace(/\s+JN$/i,'').trim().toLowerCase().replace(/(^|\s)\S/g,(c)=>c.toUpperCase());});
+  mCache={log,tags,names,liveSiding:!!sid,liveStations:!!stn};return mCache;
+}
+function mDMY(d){return `${p2(d.getUTCDate())}-${p2(d.getUTCMonth()+1)}-${d.getUTCFullYear()}`;}
+let mXmlRows=null;
+async function buildMorning(){
+  if(!accessToken){$('mSignedOut').style.display='block';$('mBody').style.display='none';return;}
+  $('mSignedOut').style.display='none';$('mBody').style.display='block';
+  const warn=[];const show=()=>{const w=$('mWarn');w.style.display=warn.length?'block':'none';w.innerHTML=warn.map((x)=>'<div>⚠ '+esc(x)+'</div>').join('');};
+  const reports=parseCoalReports($('mTxt').value);
+  if(!reports.length){$('mOut').style.display='none';show();return;}
+  const r=reports.sort((a,b)=>a.date.split('-').reverse().join().localeCompare(b.date.split('-').reverse().join())).pop();
+  r.flags.forEach((x)=>warn.push(x));
+  let c;try{c=await mLoad(false);}catch(e){warn.push('Could not read the Sheet: '+e.message);show();return;}
+  if(!c.liveSiding)warn.push('Siding Reference tab could not be read, using the built-in list');
+  const tagOf=(code)=>c.tags[String(code).trim().toUpperCase()]||FALLBACK_TAGS[String(code).trim().toUpperCase()]||null;
+  // received on the report date, from the log
+  const recv={};let coal=0,nRecv=0,other=0;
+  for(const row of c.log){const ar=row[5];if(typeof ar!=='number'||mDMY(sheetSerialToDate(ar))!==r.date)continue;
+    const tag=row[1],wt=typeof row[13]==='number'?row[13]:parseFloat(row[13])||0;coal+=wt;nRecv++;
+    if(['SECL RAIL','SECL RCR','SECL WASH','NCL RAIL','WCL RAIL','WCL WASH','WCL RCR'].includes(tag))recv[tag]=(recv[tag]||0)+1;else other++;}
+  if(!nRecv)warn.push('No rakes in the log with arrival date '+r.date);
+  if(other)warn.push(other+' rake(s) received on '+r.date+' have a blank/unknown Sender tag, counted in the total but not in any line');
+  if(Math.abs(coal-Number(r.received))>0.5)warn.push(`Coal received differs: log ${f2(coal)} vs other division ${r.received}`);
+  const closing=Number(r.opening)+coal-Number(r.totalCons);
+  if(Math.abs(closing-Number(r.closing))>0.5)warn.push(`Closing differs: calculated ${f2(closing)} vs other division ${r.closing}`);
+  // XML parts
+  let placed=null,move=null;
+  if(mXmlRows){
+    placed={counts:{},total:0};
+    for(const x of mXmlRows){if(!(x.OriginDeptTimeDate||'').startsWith(r.date))continue;const t=tagOf(x.LoadFrom);
+      if(!t)warn.push('Loading siding '+x.LoadFrom+' is not in the Siding Reference, counted but not in any line');
+      placed.counts[t||'?']=(placed.counts[t||'?']||0)+1;placed.total++;}
+    move={div:{},stn:{},stable:0,total:0};
+    for(const x of mXmlRows){if(x.Locn==='PSSS')continue;move.div[x.Dvsn]=(move.div[x.Dvsn]||0)+1;move.total++;
+      if(x.Dvsn==='BPL'){move.stn[x.Locn]=(move.stn[x.Locn]||0)+1;if(x.CurrentStts==='ST')move.stable++;}}
+    const tr=$('mTransit');if(!tr.value||tr.dataset.auto==='1'){tr.value=move.total;tr.dataset.auto='1';}
+  }else warn.push('Upload the portal XML for the loading and movement parts');
+  const L=(o,k)=>o?p2(o.counts[k]||0):'??';
+  const [dd,mm,yy]=r.date.split('-').map(Number);const sd=new Date(Date.UTC(yy,mm-1,dd+1));
+  const sv=(id)=>$(id).value===''?'??':p2(Number($(id).value));
+  const rt=Object.values(recv).reduce((a,b)=>a+b,0)+other;
+  $('mCoal').value=`*Good Morning Sir,*
+
+Report for Date : ${r.date}
+
+Opening Coal Stock: ${f2(Number(r.opening))} MT
+
+Rake received :
+SECL - Rail : ${p2(recv['SECL RAIL']||0)}
+SECL - RCR : ${p2(recv['SECL RCR']||0)}
+SECL - Wash : ${p2(recv['SECL WASH']||0)}
+NCL - Rail : ${p2(recv['NCL RAIL']||0)}
+WCL - Rail : ${p2(recv['WCL RAIL']||0)}
+WCL - Wash : ${p2(recv['WCL WASH']||0)}
+WCL - RCR : ${p2(recv['WCL RCR']||0)}
+Total Rakes : ${p2(rt)}
+
+Total Coal Received: ${f2(coal)} MT
+
+Total Coal Consumption: ${r.totalCons} MT
+
+Closing Coal Stock  : ${f2(closing)} MT
+
+Rake placed for Loading :
+SECL- Rail : ${L(placed,'SECL RAIL')}
+SECL - Wash : ${L(placed,'SECL WASH')}
+NCL - Rail : ${L(placed,'NCL RAIL')}
+WCL RCR : ${L(placed,'WCL RCR')}
+WCL - Rail : ${L(placed,'WCL RAIL')}
+WCL - Wash : ${L(placed,'WCL WASH')}
+Total Rakes : ${placed?p2(placed.total):'??'}
+
+Status on Date : ${mDMY(sd)}
+Rake received : ${sv('mRecv')} Rake
+In Transit : ${sv('mTransit')} Rakes
+Rakes Under Loading : ${sv('mLoading')} Rake
+Expected Arrival : ${sv('mExpected')}`;
+  $('mDrm').value=drmText(r);
+  if(move){
+    const lines=['RAKE MOVEMENT STATUS :-',''];
+    const order=['NGP','DHN','BSP','JBP','BSL','BPL',...Object.keys(move.div).filter((k)=>!(k in DIV_NAMES))];
+    for(const k of order){const n=move.div[k]||0;if(!n&&k!=='BPL')continue;
+      if(!(k in DIV_NAMES))warn.push('Unknown division code '+k);
+      let s=`* ${DIV_NAMES[k]||k} - ${p2(n)} ${rk(n)}`;
+      if(k==='BPL'){const parts=Object.entries(move.stn).map(([code,q])=>{const nm=c.names[code.toUpperCase()];if(!nm)warn.push('Station '+code+' is not in the Station Names tab');return `${p2(q)} ${rk(q)} at ${nm||code}`;});
+        parts.push(`${p2(move.stable)} ${rk(move.stable)} in stable position`);s+=` (${parts.join(', ')})`.replace(/, (\d+ Rakes? in stable position)\)$/,' & $1)');}
+      lines.push(s);}
+    lines.push('',`TOTAL - ${p2(move.total)} RAKES.`);
+    $('mMove').value=lines.join('\n');
+  }else $('mMove').value='Upload the portal XML to build this message.';
+  $('mOut').style.display='block';
+  ['mCoal','mDrm','mMove'].forEach((id)=>{const t=$(id);t.rows=t.value.split('\n').length+1;});
+  show();
+}
+
+$('tabMorning').addEventListener('click', () => { showTab('morning'); buildMorning(); });
+$('mSignInBtn').addEventListener('click', signIn);
+$('mTxt').addEventListener('input', buildMorning);
+['mRecv','mLoading','mExpected'].forEach((id) => $(id).addEventListener('input', buildMorning));
+$('mTransit').addEventListener('input', () => { $('mTransit').dataset.auto = '0'; buildMorning(); });
+$('mRefresh').addEventListener('click', () => { mCache = null; buildMorning(); });
+$('mXml').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  mXmlRows = parseXmlRows(await f.text());
+  $('mXmlNote').textContent = mXmlRows.length ? `${f.name}: ${mXmlRows.length} rakes read.` : 'No rakes found in this file.';
+  if (!mXmlRows.length) mXmlRows = null;
+  buildMorning();
+});
+document.querySelectorAll('[data-t]').forEach((b) => b.addEventListener('click', () => {
+  navigator.clipboard.writeText($(b.dataset.t).value).then(() => { b.textContent = 'Copied'; b.classList.add('copied'); setTimeout(() => { b.textContent = 'Copy'; b.classList.remove('copied'); }, 1500); });
+}));
 initGoogleSignIn();
 showTab('accepted');
 refresh();
